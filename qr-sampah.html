@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QR Code Absen Vendor Sampah</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',sans-serif;background:#f0f4f0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:16px}
+
+  /* Card utama */
+  .card{background:#fff;border-radius:20px;padding:28px 24px;width:100%;max-width:480px;box-shadow:0 4px 24px rgba(0,0,0,.1);text-align:center}
+  .card-title{font-size:20px;font-weight:800;color:#1a6b3c;margin-bottom:2px}
+  .card-sub{font-size:13px;color:#777;margin-bottom:20px}
+  #qr-wrap{display:flex;justify-content:center;margin-bottom:16px}
+  #qr-wrap canvas,#qr-wrap img{border-radius:12px;border:10px solid #f0f8f4;box-shadow:0 2px 16px rgba(0,0,0,.12)}
+  .url-box{background:#f5f5f5;border-radius:10px;padding:10px 14px;font-size:10px;color:#888;word-break:break-all;margin-bottom:20px;text-align:left}
+  .btn-wrap{display:flex;gap:8px;justify-content:center;margin-bottom:0}
+  .btn{padding:12px 22px;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer}
+  .btn-print{background:#1a6b3c;color:#fff}
+  .btn-dl{background:#e6f4ed;color:#1a6b3c}
+
+  /* Card langkah */
+  .card-steps{background:#fff;border-radius:20px;padding:24px;width:100%;max-width:480px;box-shadow:0 4px 24px rgba(0,0,0,.1)}
+  .steps-title{font-size:15px;font-weight:800;color:#1a6b3c;margin-bottom:16px;text-align:center}
+  .step{display:flex;align-items:flex-start;gap:14px;margin-bottom:16px}
+  .step:last-child{margin-bottom:0}
+  .step-num{background:#1a6b3c;color:#fff;font-size:14px;font-weight:800;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+  .step-body{}
+  .step-title{font-size:13px;font-weight:700;color:#222;margin-bottom:3px}
+  .step-desc{font-size:12px;color:#666;line-height:1.6}
+  .step-tip{display:inline-block;margin-top:5px;background:#fff8e1;border:1px solid #f0c040;color:#b7791f;font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px}
+  .divider{border:none;border-top:1.5px dashed #e0e0e0;margin:16px 0}
+
+  /* Print styles */
+  @media print{
+    body{background:#fff;padding:0;gap:0;display:block}
+    .card,.card-steps{box-shadow:none;border-radius:0;max-width:100%;page-break-inside:avoid}
+    .btn-wrap{display:none}
+    .url-box{border:1px solid #ddd;font-size:9px}
+    .card-title{font-size:22px}
+    #qr-wrap canvas,#qr-wrap img{width:240px!important;height:240px!important}
+    .card-steps{border-top:2px dashed #ccc;margin-top:0}
+  }
+</style>
+</head>
+<body>
+
+<!-- CARD QR CODE -->
+<div class="card">
+  <div style="font-size:40px;margin-bottom:8px">🗑️</div>
+  <div class="card-title">Absen Kedatangan Vendor Sampah</div>
+  <div class="card-sub">SGC Blok B – Sadjati Garden City</div>
+
+  <div id="qr-wrap"></div>
+  <div class="url-box" id="url-display">Memuat URL...</div>
+
+  <div class="btn-wrap">
+    <button class="btn btn-dl" onclick="downloadQR()">⬇️ Download PNG</button>
+    <button class="btn btn-print" onclick="window.print()">🖨️ Print</button>
+  </div>
+</div>
+
+<!-- CARD LANGKAH-LANGKAH -->
+<div class="card-steps">
+  <div class="steps-title">📋 Cara Absen – Ikuti Langkah Berikut</div>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <div class="step-title">Buka Kamera HP</div>
+      <div class="step-desc">Buka aplikasi <b>Kamera</b> di HP Anda seperti biasa saat mau foto. Pastikan kamera bisa melihat seluruh kotak QR di atas.</div>
+      <span class="step-tip">💡 Tidak perlu instal aplikasi apapun</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <div class="step-title">Arahkan Kamera ke Kode QR</div>
+      <div class="step-desc">Arahkan kamera HP ke gambar kotak hitam-putih di atas. <b>Jangan di-foto</b>, cukup diarahkan saja. Tunggu beberapa detik hingga muncul notifikasi atau tautan di layar HP.</div>
+      <span class="step-tip">💡 Pastikan QR terlihat jelas, tidak blur</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <div class="step-title">Ketuk Tautan yang Muncul</div>
+      <div class="step-desc">Setelah kamera membaca QR, akan muncul notifikasi atau tautan di bagian atas layar. <b>Ketuk tautan tersebut</b> untuk membuka halaman absen.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <div class="step-title">Izinkan Akses Lokasi</div>
+      <div class="step-desc">Browser akan meminta izin menggunakan lokasi GPS HP Anda. Ketuk <b>"Izinkan"</b> atau <b>"Allow"</b>. Ini diperlukan untuk memastikan Anda berada di area pos.</div>
+      <span class="step-tip">⚠️ Harus di dekat pos security</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <div class="step-title">Ketuk "Konfirmasi Kedatangan"</div>
+      <div class="step-desc">Setelah muncul tanda <b>✅ Lokasi terverifikasi</b>, ketuk tombol hijau <b>"Konfirmasi Kedatangan"</b>. Absensi langsung tercatat otomatis.</div>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <div style="text-align:center;font-size:11px;color:#aaa;line-height:1.8">
+    Kesulitan? Hubungi pengurus SGC Blok B.<br>
+    Absen hanya bisa dilakukan <b>1 kali per hari</b>.
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  const BASE = 'https://nuryadipratama-cmyk.github.io/SGC-Blok-B';
+  const ABSEN_URL = BASE + '/absen-sampah.html';
+  document.getElementById('url-display').textContent = ABSEN_URL;
+
+  new QRCode(document.getElementById('qr-wrap'), {
+    text: ABSEN_URL,
+    width: 220, height: 220,
+    colorDark: '#1a6b3c',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
+  function downloadQR(){
+    setTimeout(()=>{
+      const canvas = document.querySelector('#qr-wrap canvas');
+      if(!canvas){alert('QR belum siap, coba lagi.');return;}
+      const a = document.createElement('a');
+      a.download = 'qr-absen-vendor-sampah.png';
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    }, 300);
+  }
+</script>
+</body>
+</html>

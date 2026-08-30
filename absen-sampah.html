@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Absen Vendor Sampah – SGC Blok B</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',sans-serif;background:#f0f4f0;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px}
+  .card{background:#fff;border-radius:20px;padding:28px 20px;width:100%;max-width:420px;box-shadow:0 4px 24px rgba(0,0,0,.1);text-align:center;margin-bottom:16px}
+  .logo{font-size:44px;margin-bottom:6px}
+  .title{font-size:17px;font-weight:800;color:#1a6b3c;margin-bottom:3px}
+  .sub{font-size:12px;color:#888;margin-bottom:20px}
+  .info-box{background:#f0f8f4;border:1.5px solid #b8ddc9;border-radius:12px;padding:14px;margin-bottom:16px;text-align:left}
+  .info-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .info-row:last-child{margin-bottom:0}
+  .info-label{font-size:11px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+  .info-val{font-size:13px;font-weight:700;color:#1a6b3c}
+  .geo-box{border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:12px;font-weight:600;text-align:center}
+  .geo-checking{background:#fff8e1;border:1.5px solid #f0c040;color:#b7791f}
+  .geo-ok{background:#e6f4ed;border:1.5px solid #b8ddc9;color:#1a6b3c}
+  .geo-fail{background:#fde8e8;border:1.5px solid #f5c6c6;color:#c0392b}
+  .btn{width:100%;padding:15px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer}
+  .btn-konfirm{background:#1a6b3c;color:#fff}
+  .btn-konfirm:disabled{background:#aaa;cursor:not-allowed}
+  .spinner{display:none;margin:14px auto 0;width:28px;height:28px;border:3px solid #e0e0e0;border-top-color:#1a6b3c;border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .msg-ok{background:#e6f4ed;color:#1a6b3c;border:1.5px solid #b8ddc9;border-radius:12px;padding:12px;margin-top:14px;font-size:13px;font-weight:600;display:none}
+  .msg-err{background:#fde8e8;color:#c0392b;border:1.5px solid #f5c6c6;border-radius:12px;padding:12px;margin-top:14px;font-size:13px;font-weight:600;display:none}
+  /* Nunggak */
+  .nunggak-card{background:#fff;border-radius:20px;width:100%;max-width:420px;box-shadow:0 4px 24px rgba(0,0,0,.1);overflow:hidden;display:none}
+  .nunggak-header{background:#c0392b;color:#fff;padding:16px 20px}
+  .nunggak-header h2{font-size:15px;font-weight:800;margin-bottom:2px}
+  .nunggak-header p{font-size:12px;opacity:.85}
+  .gang-group{padding:12px 16px 0}
+  .gang-label{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #f0f0f0}
+  .rumah-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f9f9f9}
+  .rumah-item:last-child{border-bottom:none}
+  .rumah-nama{font-size:13px;font-weight:700;color:#222}
+  .rumah-blok{font-size:11px;color:#888;margin-top:1px}
+  .rumah-badge{background:#fde8e8;color:#c0392b;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px}
+  .kosong{padding:20px;text-align:center;color:#aaa;font-size:13px}
+  .nunggak-footer{padding:14px 16px;background:#fafafa;border-top:1px solid #f0f0f0;font-size:11px;color:#aaa;text-align:center}
+</style>
+</head>
+<body>
+
+<div class="card" id="card-main">
+  <div class="logo">🗑️</div>
+  <div class="title">Absensi Vendor Sampah</div>
+  <div class="sub">SGC Blok B – Sadjati Garden City</div>
+
+  <div class="info-box">
+    <div class="info-row"><span class="info-label">Tanggal</span><span class="info-val" id="tgl-display">–</span></div>
+    <div class="info-row"><span class="info-label">Jam</span><span class="info-val" id="jam-display">–</span></div>
+    <div class="info-row"><span class="info-label">Lokasi</span><span class="info-val">SGC Blok B</span></div>
+  </div>
+
+  <!-- Status Geofencing -->
+  <div class="geo-box geo-checking" id="geo-box">📍 Memeriksa lokasi Anda...</div>
+
+  <button class="btn btn-konfirm" id="btn-konfirm" onclick="submitAbsen()" disabled>
+    ✅ Konfirmasi Kedatangan
+  </button>
+  <div class="spinner" id="spinner"></div>
+  <div class="msg-ok" id="msg-ok"></div>
+  <div class="msg-err" id="msg-err"></div>
+</div>
+
+<div class="nunggak-card" id="card-nunggak">
+  <div class="nunggak-header">
+    <h2>🚫 Rumah Yang TIDAK Diangkut</h2>
+    <p id="nunggak-sub">Belum lunas iuran sampah bulan ini</p>
+  </div>
+  <div id="nunggak-body"></div>
+  <div class="nunggak-footer">Data diambil dari sistem iuran SGC Blok B</div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { getFirestore, collection, addDoc, getDocs, query, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+const app = initializeApp({
+  apiKey:"AIzaSyA6ksXam7dRU02Nw1zHERTao9Lo9NePNNU",
+  authDomain:"sgc-blok-b.firebaseapp.com", projectId:"sgc-blok-b",
+  storageBucket:"sgc-blok-b.firebasestorage.app",
+  messagingSenderId:"540181256635",
+  appId:"1:540181256635:web:6ada3f435039f2404c4c9e"
+});
+const db = getFirestore(app);
+
+// Clock
+function updateClock(){
+  const now = new Date();
+  document.getElementById('tgl-display').textContent =
+    now.toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  document.getElementById('jam-display').textContent =
+    now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+updateClock(); setInterval(updateClock,1000);
+
+// Hitung jarak (Haversine)
+function hitungJarak(lat1,lng1,lat2,lng2){
+  const R=6371000;
+  const dLat=(lat2-lat1)*Math.PI/180;
+  const dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// Load setting geo sampah dari Firestore, lalu cek lokasi
+let GEO_LAT=null,GEO_LNG=null,GEO_RADIUS=100;
+
+async function initGeo(){
+  const geoBox=document.getElementById('geo-box');
+  const btn=document.getElementById('btn-konfirm');
+  try{
+    // Ambil koordinat pos sampah dari settings
+    const snap=await getDocs(collection(db,'settings'));
+    snap.forEach(d=>{
+      const data=d.data();
+      if(data.key==='geo_sampah'){GEO_LAT=data.lat;GEO_LNG=data.lng;GEO_RADIUS=data.radius||100;}
+    });
+
+    if(GEO_LAT===null){
+      // Belum di-set admin — izinkan saja tanpa cek lokasi
+      geoBox.className='geo-box geo-ok';
+      geoBox.textContent='✅ Lokasi tidak diverifikasi (belum dikonfigurasi)';
+      btn.disabled=false;
+      return;
+    }
+
+    // Cek GPS vendor
+    if(!navigator.geolocation){
+      geoBox.className='geo-box geo-fail';
+      geoBox.textContent='❌ GPS tidak tersedia di browser ini';
+      return;
+    }
+
+    geoBox.className='geo-box geo-checking';
+    geoBox.textContent='📍 Mendapatkan lokasi GPS...';
+
+    navigator.geolocation.getCurrentPosition(pos=>{
+      const jarak=Math.round(hitungJarak(pos.coords.latitude,pos.coords.longitude,GEO_LAT,GEO_LNG));
+      if(jarak<=GEO_RADIUS){
+        geoBox.className='geo-box geo-ok';
+        geoBox.textContent='✅ Lokasi terverifikasi – '+jarak+'m dari pos (maks. '+GEO_RADIUS+'m)';
+        btn.disabled=false;
+      }else{
+        geoBox.className='geo-box geo-fail';
+        geoBox.textContent='❌ Terlalu jauh dari pos – '+jarak+'m (maks. '+GEO_RADIUS+'m). Harap scan QR di dekat pos.';
+      }
+    },()=>{
+      geoBox.className='geo-box geo-fail';
+      geoBox.textContent='❌ Izin lokasi ditolak. Aktifkan GPS dan izinkan lokasi di browser.';
+    },{enableHighAccuracy:true,timeout:10000});
+
+  }catch(e){
+    geoBox.className='geo-box geo-ok';
+    geoBox.textContent='⚠️ Tidak bisa cek lokasi: '+e.message;
+    btn.disabled=false;
+  }
+}
+initGeo();
+
+// Nunggak
+async function getNunggak(){
+  const now=new Date();
+  const thn=now.getFullYear(),blnIdx=now.getMonth();
+  const wargaSnap=await getDocs(collection(db,'warga'));
+  const wargaMap={};
+  wargaSnap.forEach(d=>wargaMap[d.id]={id:d.id,...d.data()});
+  const iuranSnap=await getDocs(query(collection(db,'iuran_warga'),
+    where('jenis','==','sampah'),where('thn','==',thn),where('blnIdx','==',blnIdx),where('bayar','==',true)));
+  const sudahBayar=new Set();
+  iuranSnap.forEach(d=>sudahBayar.add(d.data().wargaId));
+  const nunggak=Object.values(wargaMap).filter(w=>!sudahBayar.has(w.id));
+  const perGang={};
+  const URUTAN=['Gang Arthasena','Gang Macan','Gang Senja','Gang Kenari','Gang Angker'];
+  nunggak.forEach(w=>{const g=w.gang||'Lainnya';if(!perGang[g])perGang[g]=[];perGang[g].push(w);});
+  Object.values(perGang).forEach(arr=>arr.sort((a,b)=>{
+    if((a.blok||'')!==(b.blok||''))return(a.blok||'')>(b.blok||'')?1:-1;
+    return Number(a.norumah||0)-Number(b.norumah||0);
+  }));
+  return{perGang,total:nunggak.length,URUTAN,bulan:now.toLocaleDateString('id-ID',{month:'long',year:'numeric'})};
+}
+
+function renderNunggak({perGang,total,URUTAN,bulan}){
+  document.getElementById('nunggak-sub').textContent='Belum lunas iuran sampah – '+bulan+' · '+total+' unit';
+  const body=document.getElementById('nunggak-body');
+  if(total===0){body.innerHTML='<div class="kosong">🎉 Semua warga sudah lunas bulan ini!</div>';return;}
+  const gangs=URUTAN.filter(g=>perGang[g]);
+  Object.keys(perGang).forEach(g=>{if(!gangs.includes(g))gangs.push(g);});
+  body.innerHTML=gangs.map(gang=>`<div class="gang-group">
+    <div class="gang-label">📍 ${gang} (${perGang[gang].length} unit)</div>
+    ${perGang[gang].map(w=>`<div class="rumah-item">
+      <div><div class="rumah-nama">${w.namaKK||'-'}</div><div class="rumah-blok">Blok ${w.blok||'-'} No. ${w.norumah||'-'}</div></div>
+      <div class="rumah-badge">SKIP</div>
+    </div>`).join('')}
+  </div>`).join('');
+}
+
+window.submitAbsen = async function(){
+  const btn=document.getElementById('btn-konfirm');
+  const spinner=document.getElementById('spinner');
+  const msgOk=document.getElementById('msg-ok');
+  const msgErr=document.getElementById('msg-err');
+  msgOk.style.display='none';msgErr.style.display='none';
+  const now=new Date();
+  const hariIni=now.toISOString().split('T')[0];
+  try{
+    btn.disabled=true;spinner.style.display='block';
+    const q=query(collection(db,'absen_vendor'),where('tanggal','==',hariIni),where('vendor','==','sampah'));
+    const snap=await getDocs(q);
+    const jam=now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+    if(snap.empty){
+      await addDoc(collection(db,'absen_vendor'),{
+        vendor:'sampah',tanggal:hariIni,jam,
+        timestamp:serverTimestamp(),lokasi:'SGC Blok B',metode:'qr_scan'
+      });
+      msgOk.style.display='block';
+      msgOk.textContent='✅ Absensi tercatat – '+jam;
+    }else{
+      msgOk.style.display='block';
+      msgOk.textContent='✅ Sudah tercatat sebelumnya – '+snap.docs[0].data().jam+'. Terima kasih!';
+    }
+    const data=await getNunggak();
+    renderNunggak(data);
+    document.getElementById('card-nunggak').style.display='block';
+    btn.disabled=false;spinner.style.display='none';
+  }catch(e){
+    spinner.style.display='none';btn.disabled=false;
+    msgErr.style.display='block';msgErr.textContent='❌ Gagal: '+e.message;
+  }
+};
+</script>
+</body>
+</html>

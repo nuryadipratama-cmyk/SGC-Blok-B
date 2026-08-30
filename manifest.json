@@ -1,0 +1,25 @@
+{
+  "name": "SGC Blok B",
+  "short_name": "SGC Blok B",
+  "description": "Aplikasi Warga Sadjati Garden City Blok B",
+  "start_url": "/SGC-Blok-B/",
+  "scope": "/SGC-Blok-B/",
+  "display": "standalone",
+  "background_color": "#1a6b3c",
+  "theme_color": "#1a6b3c",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

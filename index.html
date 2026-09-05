@@ -4190,12 +4190,17 @@ function bunyikanAlarm(){
 
 async function kirimFCMPanicViaGAS(payload){
   try{
-    const GAS_URL='https://script.google.com/macros/s/AKfycbx20ua0ZL2s33bkKG9om1r9i9ZiRdavK_jtLOINGQwWSaWhsiSKBoAEMrBqLIRE-wNWdw/exec';
-    await fetch(GAS_URL,{
-      method:'POST',
-      mode:'no-cors',
-      headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({type:'panic',...payload})
+    const GAS_URL='https://script.google.com/macros/s/AKfycbyBEMTiukplVu9jv5A-cCHUsThEuEsOBwZT6_zsTSJ2lsTNE_TaTiHp2j_3Qa91HBq7RA/exec';
+    const params=new URLSearchParams({
+      type:'panic',
+      nama:payload.nama||'-',
+      unit:payload.unit||'-',
+      jam:payload.jam||'-',
+      lokasi:payload.lokasi||'-'
+    });
+    await fetch(GAS_URL+'?'+params.toString(),{
+      method:'GET',
+      mode:'no-cors'
     });
   }catch(e){console.error('GAS panic gagal:',e);}
 }

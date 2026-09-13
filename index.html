@@ -855,6 +855,14 @@ th.sort-desc::after{content:" ↓";opacity:1;}
   </div>
   <div class="pbody">
     <div id="al-warga"></div>
+    <!-- Tab navigasi -->
+    <div style="display:flex;gap:0;margin-bottom:12px;border:1.5px solid var(--border);border-radius:10px;overflow:hidden">
+      <button id="tab-warga-daftar" class="tab-btn active" onclick="togWargaTab('daftar')" style="flex:1;border-radius:0;border:none">📋 Daftar</button>
+      <button id="tab-warga-denah" class="tab-btn" onclick="togWargaTab('denah')" style="flex:1;border-radius:0;border:none;border-left:1.5px solid var(--border)">🗺️ Denah</button>
+    </div>
+
+    <!-- Panel Daftar -->
+    <div id="panel-warga-daftar">
     <!-- Filter Gang -->
     <select id="filter-gang-warga" onchange="loadWarga()" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;color:var(--text);background:#fff;margin-bottom:8px">
       <option value="">Semua Gang</option>
@@ -867,6 +875,35 @@ th.sort-desc::after{content:" ↓";opacity:1;}
     </select>
     <input type="text" id="search-warga" placeholder="🔍 Cari nama, blok, atau no. rumah..." oninput="filterWarga()" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;color:var(--text);background:#fff;margin-bottom:12px;box-sizing:border-box">
     <div id="list-warga"><div class="empty"><div class="ei">👨‍👩‍👧‍👦</div><p>Memuat data...</p></div></div>
+    </div>
+
+    <!-- Panel Denah -->
+    <div id="panel-warga-denah" style="display:none">
+      <div id="al-denah"></div>
+      <!-- Legenda + Edit Gang (admin) -->
+      <div id="denah-legend" style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">KETERANGAN GANG</div>
+        <div id="denah-gang-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        <button id="btn-edit-gang" style="display:none;margin-top:8px" class="btn bs bsm" onclick="bukaEditGang()">⚙️ Edit Nama Gang</button>
+      </div>
+      <!-- Denah grid scroll horizontal -->
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <div id="denah-grid" style="min-width:900px;padding-bottom:12px">
+          <div class="empty"><div class="ei">🗺️</div><p>Memuat denah...</p></div>
+        </div>
+      </div>
+      <!-- Modal edit gang -->
+      <div id="modal-edit-gang" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:none;align-items:center;justify-content:center">
+        <div style="background:#fff;border-radius:16px;padding:20px;width:90%;max-width:400px">
+          <div style="font-size:15px;font-weight:700;margin-bottom:16px">⚙️ Edit Nama Gang</div>
+          <div id="edit-gang-fields"></div>
+          <div class="bgrp">
+            <button class="btn bs" onclick="tutupEditGang()">Batal</button>
+            <button class="btn bp" onclick="simpanNamaGang()">💾 Simpan</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -3483,6 +3520,285 @@ function filterWarga(){
   });
 }
 window.filterWarga=filterWarga;
+
+// ===== DENAH WARGA =====
+var _denahGangNames={
+  arthasena:'Gang Arthasena',
+  macan:'Gang Macan',
+  satuhati:'Gang Senja',
+  kenari:'Gang Kenari',
+  angker:'Gang Angker'
+};
+var _denahWargaMap={};
+
+function togWargaTab(tab){
+  var tabs=['daftar','denah'];
+  tabs.forEach(function(t){
+    var btn=document.getElementById('tab-warga-'+t);
+    var panel=document.getElementById('panel-warga-'+t);
+    if(btn)btn.classList.toggle('active',t===tab);
+    if(panel)panel.style.display=t===tab?'block':'none';
+  });
+  if(tab==='denah')loadDenah();
+}
+window.togWargaTab=togWargaTab;
+
+async function loadDenah(){
+  var el=document.getElementById('denah-grid');
+  if(!el)return;
+  el.innerHTML='<div class="empty"><div class="ei">⏳</div><p>Memuat denah...</p></div>';
+  try{
+    // Load nama gang dari settings
+    var settSnap=await window.FG(window.FQ(window.FC(window.db,'settings'),window.FW('key','==','gang_names')));
+    settSnap.forEach(function(d){
+      var data=d.data();
+      if(data.value)Object.assign(_denahGangNames,data.value);
+    });
+    // Load semua warga
+    var wargaSnap=await window.FG(window.FC(window.db,'warga'));
+    _denahWargaMap={};
+    wargaSnap.forEach(function(d){
+      var data=d.data();
+      var blok=(data.blok||'').toUpperCase().trim();
+      var norumah=(data.norumah||'').toString().trim();
+      var key=blok+'-'+norumah;
+      _denahWargaMap[key]={nama:data.namaKK||'',gang:data.gang||''};
+    });
+    // Tampilkan legenda
+    renderDenahLegend();
+    // Render grid
+    renderDenahGrid();
+    // Tampilkan tombol edit gang untuk admin
+    var btnEdit=document.getElementById('btn-edit-gang');
+    if(btnEdit)btnEdit.style.display=(CU&&CU.role==='admin')?'block':'none';
+  }catch(e){
+    el.innerHTML='<div class="empty"><p>Gagal: '+e.message+'</p></div>';
+  }
+}
+window.loadDenah=loadDenah;
+
+function getGangColor(gang){
+  var g=(gang||'').toLowerCase();
+  if(g.includes('arthas')||g.includes('artas'))return{bg:'#fff59d',border:'#f9a825',text:'#333'};
+  if(g.includes('macan'))return{bg:'#81d4fa',border:'#0277bd',text:'#333'};
+  if(g.includes('senja')||g.includes('satu hati'))return{bg:'#a5d6a7',border:'#2e7d32',text:'#333'};
+  if(g.includes('kenari'))return{bg:'#ce93d8',border:'#6a1b9a',text:'#333'};
+  if(g.includes('angker'))return{bg:'#ffcc80',border:'#e65100',text:'#333'};
+  return{bg:'#f5f5f5',border:'#bbb',text:'#999'};
+}
+
+function renderDenahLegend(){
+  var el=document.getElementById('denah-gang-list');
+  if(!el)return;
+  var gangs=[
+    {key:'arthasena',label:_denahGangNames.arthasena,color:'#fff59d',border:'#f9a825'},
+    {key:'macan',label:_denahGangNames.macan,color:'#81d4fa',border:'#0277bd'},
+    {key:'satuhati',label:_denahGangNames.satuhati,color:'#a5d6a7',border:'#2e7d32'},
+    {key:'kenari',label:_denahGangNames.kenari,color:'#ce93d8',border:'#6a1b9a'},
+    {key:'angker',label:_denahGangNames.angker,color:'#ff8a65',border:'#bf360c'},
+    {key:'kosong',label:'Belum Dihuni',color:'#fff',border:'#ccc'},
+    {key:'kantor',label:'Kantor Pemasaran',color:'#ce93d8',border:'#6a1b9a'},
+  ];
+  el.innerHTML=gangs.map(function(g){
+    return'<div style="display:flex;align-items:center;gap:4px;font-size:10px">'+
+      '<div style="width:14px;height:14px;background:'+g.color+';border:1.5px solid '+g.border+';border-radius:3px"></div>'+
+      '<span>'+g.label+'</span></div>';
+  }).join('');
+}
+
+function denahCell(blok,no,gang,isKantor){
+  var key=blok+'-'+no;
+  var warga=_denahWargaMap[key];
+  var nama=warga?warga.nama:'';
+  var gangWarga=warga?warga.gang:gang;
+  var color;
+  if(isKantor){color={bg:'#ce93d8',border:'#6a1b9a',text:'#333'};}
+  else if(!nama){color={bg:'#fff',border:'#ddd',text:'#bbb'};}
+  else{color=getGangColor(gangWarga);}
+  var displayNama=nama||'Belum ada data';
+  var displayNamaColor=nama?color.text:'#bbb';
+  return'<div style="min-width:80px;max-width:80px;min-height:60px;border:1.5px solid '+color.border+
+    ';background:'+color.bg+';border-radius:6px;padding:4px;font-size:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:2px">'+
+    '<div style="font-weight:700;font-size:8px;color:'+color.border+'">'+blok+'-'+no+'</div>'+
+    '<div style="font-size:9px;color:'+displayNamaColor+';line-height:1.2">'+displayNama+'</div>'+
+    '</div>';
+}
+
+function denahRow(label,cells){
+  return'<div style="margin-bottom:8px">'+
+    '<div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:4px">'+label+'</div>'+
+    '<div style="display:flex;gap:4px;flex-wrap:nowrap">'+cells+'</div></div>';
+}
+
+function renderDenahGrid(){
+  var el=document.getElementById('denah-grid');
+  if(!el)return;
+
+  var W='50px';
+  var H='42px';
+
+  function cell(blok,no,gang,isKantor){
+    var key=blok+'-'+no;
+    var warga=_denahWargaMap[key];
+    var nama=warga?warga.nama:'';
+    var color;
+    if(isKantor){color={bg:'#ce93d8',border:'#6a1b9a',text:'#333'};}
+    else{color=getGangColor(gang);}
+    return'<div style="min-width:'+W+';max-width:'+W+';min-height:'+H+';border:1px solid '+color.border+
+      ';background:'+color.bg+';border-radius:4px;padding:2px;font-size:7px;display:flex;flex-direction:column;'+
+      'align-items:center;justify-content:center;text-align:center;gap:1px;flex-shrink:0;overflow:hidden">'+
+      '<div style="font-weight:700;font-size:6px;color:'+color.border+';white-space:nowrap">'+blok+'-'+no+'</div>'+
+      '<div style="font-size:7px;color:'+color.text+';line-height:1.1;word-break:break-word">'+( nama||'')+'</div>'+
+      '</div>';
+  }
+
+  function hrow(items){return'<div style="display:flex;gap:2px">'+items+'</div>';}
+  function vcol(items){return'<div style="display:flex;flex-direction:column;gap:2px">'+items+'</div>';}
+  function hgap(px){return'<div style="height:'+px+'px"></div>';}
+  function wgap(px){return'<div style="min-width:'+px+'px;flex-shrink:0"></div>';}
+
+  var html='<div style="display:inline-flex;gap:0;align-items:flex-start">';
+
+  // === KOLOM UTAMA + B6/B7 sejajar ===
+  html+='<div style="display:flex;flex-direction:column;gap:3px">';
+
+  // BARIS 1: B5 (17→1) + B6 kolom kiri sejajar
+  html+='<div style="display:flex;gap:2px;align-items:flex-start">';
+  html+=hrow([17,16,15,14,'12A',12,11,10,9,8,7,6,5,4,3,2,1].map(function(n){return cell('B5',n,'angker');}).join(''));
+  html+=wgap(6);
+  // B6 kolom kiri: Kontrak(6), Edmon(5), kosong(4), Agus Supriyanto(3), Ari Satrianto(2), Ipin(1)
+  html+=vcol(
+    cell('B6',6,'kenari')+
+    cell('B6',5,'kenari')+
+    cell('B6',4,'kenari')+
+    cell('B6',3,'kenari')+
+    cell('B6',2,'kenari')+
+    cell('B6',1,'kenari')
+  );
+  html+=wgap(2);
+  // B6 kolom kanan: sejajar B4-18→34 (baris ke-4 termasuk gap)
+  // B6 kolom kiri: 6 sel (H+2px)*6 + gap(4) = sejajar B4 Angker
+  // B6-8,9,10 mulai dari posisi sama dengan B4-18→34 = (H+2)*3 + 4px gap
+  html+='<div style="display:flex;flex-direction:column;gap:2px;margin-top:calc(('+H+' + 2px) * 3 + 4px)">';
+  html+=vcol(
+    cell('B6',8,'kenari')+
+    cell('B6',9,'kenari')+
+    cell('B6',10,'kenari')
+  );
+  html+='</div>';
+  html+=wgap(4);
+  // B7 sejajar B4-18→34
+  html+='<div style="display:flex;flex-direction:column;gap:2px;margin-top:calc(('+H+' + 2px) * 3 + 4px)">';
+  html+=vcol(
+    cell('B7',3,'kenari')+
+    cell('B7',2,'kenari')+
+    cell('B7',1,'kenari')
+  );
+  html+='</div>';
+  html+=wgap(2);
+  html+='<div style="display:flex;flex-direction:column;gap:2px;margin-top:calc(('+H+' + 2px) * 3 + 4px)">';
+  html+=vcol(
+    cell('B7',6,'kenari')+
+    cell('B7',7,'kenari')+
+    cell('B7',8,'kenari')
+  );
+  html+='</div>';
+  html+='</div>'; // end baris 1
+
+  html+=hgap(4);
+
+  // BARIS 2: B4 Angker (18→34)
+  html+=hrow([18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34].map(function(n){return cell('B4',n,'angker');}).join(''));
+  // BARIS 3: B4 Senja (17→1)
+  html+=hrow([17,16,15,14,'12A',12,11,10,9,8,7,6,5,4,3,2,1].map(function(n){return cell('B4',n,'satuhati');}).join(''));
+
+  html+=hgap(4);
+
+  // BARIS 4-5: B3 vertikal + B2 dua baris
+  html+='<div style="display:flex;gap:2px;align-items:flex-start">';
+  html+=vcol([4,3,2,1].map(function(n){return cell('B3',n,n>=3?'satuhati':'macan');}).join(''));
+  html+='<div style="display:flex;flex-direction:column;gap:2px">';
+  html+=hrow([24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48].map(function(n){return cell('B2',n,'satuhati');}).join(''));
+  html+=hrow([23,22,21,20,19,18,17,16,15,14,'12A',12,11,10,9,8,7,6,5,4,3,2,1,'1A'].map(function(n){return cell('B2',n,'macan');}).join(''));
+  html+='</div></div>';
+
+  html+=hgap(4);
+
+  // BARIS 6-7: B1 dua baris
+  html+=hrow([22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44].map(function(n){return cell('B1',n,'macan');}).join(''));
+  html+=hrow([21,20,19,18,17,16,15,14,'12A',12,11,10,9,8,7,6,5,4,3,2,1,'1A'].map(function(n){return cell('B1',n,'arthasena');}).join(''));
+
+  html+=hgap(4);
+
+  // BARIS 8: Blok B horizontal + vertikal
+  html+='<div style="display:flex;gap:2px;align-items:flex-start">';
+  html+=hrow([24,23,22,21,20,19,18,17,16,15,14,'12A',12].map(function(n){return cell('B',n,'arthasena');}).join(''));
+  html+=vcol(
+    [11,10,9].map(function(n){return cell('B',n,'arthasena');}).join('')+
+    [8,7,6,5,4].map(function(n){return cell('B',n,'',true);}).join('')+
+    cell('B','Dwi','arthasena')+
+    [3,2,1].map(function(n){return cell('B',n,'',true);}).join('')
+  );
+  html+='</div>';
+
+  html+='</div>'; // end kolom utama
+  html+='</div>'; // end wrapper
+  el.innerHTML=html;
+}
+
+
+window.renderDenahGrid=renderDenahGrid;
+
+async function bukaEditGang(){
+  var modal=document.getElementById('modal-edit-gang');
+  if(!modal)return;
+  var fields=document.getElementById('edit-gang-fields');
+  var gangs=[
+    {key:'arthasena',label:'Gang Arthasena'},
+    {key:'macan',label:'Gang Macan'},
+    {key:'satuhati',label:'Gang Satu Hati'},
+    {key:'kenari',label:'Gang Kenari'},
+    {key:'angker',label:'Gang Angker'},
+  ];
+  fields.innerHTML=gangs.map(function(g){
+    return'<div class="fg"><label>'+g.label+'</label>'+
+      '<input type="text" id="gang-edit-'+g.key+'" value="'+(_denahGangNames[g.key]||g.label)+'"></div>';
+  }).join('');
+  modal.style.display='flex';
+}
+window.bukaEditGang=bukaEditGang;
+
+function tutupEditGang(){
+  var modal=document.getElementById('modal-edit-gang');
+  if(modal)modal.style.display='none';
+}
+window.tutupEditGang=tutupEditGang;
+
+async function simpanNamaGang(){
+  if(!CU||CU.role!=='admin'){alert('Akses ditolak.');return;}
+  var keys=['arthasena','macan','satuhati','kenari','angker'];
+  var newNames={};
+  keys.forEach(function(k){
+    var el=document.getElementById('gang-edit-'+k);
+    if(el)newNames[k]=el.value.trim()||_denahGangNames[k];
+  });
+  try{
+    var snap=await window.FG(window.FQ(window.FC(window.db,'settings'),window.FW('key','==','gang_names')));
+    var docId=null;
+    snap.forEach(function(d){docId=d.id;});
+    if(docId){
+      await window.FU(window.FDoc(window.db,'settings',docId),{value:newNames,updatedAt:window.FT()});
+    }else{
+      await window.FA(window.FC(window.db,'settings'),{key:'gang_names',value:newNames,updatedAt:window.FT()});
+    }
+    Object.assign(_denahGangNames,newNames);
+    tutupEditGang();
+    renderDenahLegend();
+    renderDenahGrid();
+    showAl('warga','✅ Nama gang berhasil disimpan!');
+  }catch(e){alert('Gagal simpan: '+e.message);}
+}
+window.simpanNamaGang=simpanNamaGang;
 
 async function loadWarga(){
   const isPengurus=CU&&(CU.role==='admin'||CU.role==='pengurus'||CU.role.startsWith('koordinator_'));
